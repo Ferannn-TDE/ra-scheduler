@@ -1,73 +1,128 @@
-# React + TypeScript + Vite
+# RA Scheduler
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+[![CI](https://github.com/Ferannn-TDE/ra-scheduler/actions/workflows/ci.yml/badge.svg)](https://github.com/Ferannn-TDE/ra-scheduler/actions/workflows/ci.yml)
+![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)
+![Tailwind CSS 4](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Postgres_%2B_Auth-3FCF8E?logo=supabase&logoColor=white)
+![Gemini](https://img.shields.io/badge/Google_Gemini-vision-8E75B2?logo=googlegemini&logoColor=white)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Currently, two official plugins are available:
+**Fair, availability-aware duty scheduling for Resident Assistant teams. RAs enter when they can work, and the admin generates and publishes a balanced semester roster in one click.**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## What it is
 
-## React Compiler
+University housing teams staff a duty rotation every night of the semester. Building that roster by hand in a spreadsheet is slow and it's hard to keep fair. RA Scheduler replaces the spreadsheet:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Resident Assistants** sign in, mark the weekly shifts they can work and the ones they'd prefer. They can also upload a screenshot of their class timetable and let AI fill in their availability. Once the schedule is published, they can export their shifts to their calendar.
+- **Admins** pick a date range, generate a schedule that balances shifts across the team, review the fairness chart and any understaffed shifts, then publish it to everyone.
 
-## Expanding the ESLint configuration
+It is a mobile-friendly, installable web app built with React, TypeScript and Supabase.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Screenshots
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+| Login | RA availability | Admin schedule |
+|---|---|---|
+| ![Login screen](docs/screenshots/login.png) | ![Weekly availability grid](docs/screenshots/availability.png) | ![Admin schedule with fairness chart](docs/screenshots/admin-schedule.png) |
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Features
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- **Availability and shift preferences**: each RA sets a weekly template of shifts they *can* work, then marks the ones they'd *like* to work.
+- **Class-timetable scan with Gemini**: upload a screenshot of a class schedule. Google Gemini finds evening class conflicts and the availability grid updates automatically.
+- **Fair scheduling with understaffed flags**: the generator balances total shifts per RA, honors preferences as a tie-breaker, and flags any shift it could not fully staff.
+- **Fairness chart**: a bar chart of shifts per RA against the team average, plus min / max / average stat cards.
+- **Publish / unpublish**: publishing replaces the live roster for the date range and records who published it. Any published range can be unpublished (deleted) from the history list.
+- **.ics calendar export**: RAs download their own shifts as a calendar file for Google Calendar, Apple Calendar or Outlook.
+- **Installable PWA**: works as a home-screen app on phones, with offline caching of the app shell.
+
+## How the scheduler works
+
+The generator (`src/utils/scheduler.ts`) walks through every day in the selected range, one shift at a time. **Staffing rules:** every evening needs 2 RAs. Morning shifts exist only on Saturday and Sunday and need 1 RA. For each shift, the only candidates are RAs who marked that weekday and shift as available. Candidates are ranked by a score: **the number of shifts they've already been given in this schedule, minus 0.5 if they marked the shift as a preference**. The lowest scores fill the slots, and their counts go up before the next shift is filled. Because a preference is worth half a shift, it breaks ties between RAs with equal workloads but never beats someone who has a full shift fewer. When RAs have similar availability, this keeps totals within about one shift of each other. If too few RAs are available, the shift gets as many as possible and is marked **understaffed**. Counts start at zero for each generation, and an RA may be given both shifts on the same day.
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| UI | React 19, React Router 7, Tailwind CSS 4, Recharts |
+| Language and build | TypeScript 5.9, Vite 7, vite-plugin-pwa |
+| Backend | Supabase (Postgres, Row Level Security, Auth, Storage) |
+| AI | Google Gemini via `@google/genai` (timetable image analysis) |
+| Dates | date-fns |
+| Quality | ESLint, Vitest, GitHub Actions CI |
+
+## Project structure
+
+```
+.
+├── public/                  # App icons, favicon, PWA assets
+├── src/
+│   ├── components/          # Shared UI: ShiftCard, FairnessChart, modals, route guard
+│   ├── constants/           # Day names and shift rules
+│   ├── hooks/               # useAlert
+│   ├── pages/               # One file per route (Login, Dashboard, AdminScheduler, ...)
+│   ├── types/               # Row types for the Supabase tables
+│   ├── utils/               # scheduler, .ics export, Gemini scan, Supabase client (+ tests)
+│   ├── App.tsx              # Routes (lazy-loaded)
+│   └── main.tsx             # Entry point
+├── supabase/schema.sql      # Tables, RLS policies and storage bucket
+├── docs/                    # Roadmap and screenshots
+└── .github/workflows/ci.yml # Lint, test and build on every push and PR
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Getting started
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+**Prerequisites:** Node.js 20.19 or newer, a free [Supabase](https://supabase.com) project, and a [Gemini API key](https://aistudio.google.com/apikey) (only needed for the timetable scan).
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
+2. **Create a Supabase project** at [supabase.com](https://supabase.com/dashboard).
+3. **Create the database.** In the Supabase dashboard, open **SQL Editor**, paste in [`supabase/schema.sql`](supabase/schema.sql) and run it. This creates the tables and RLS policies.
+4. **Create the storage bucket.** The schema script creates a public bucket named `schedule`. If you skipped that part, go to **Storage → New bucket**, name it `schedule`, and make it **Public**.
+5. **Create an admin user.** Go to **Authentication → Users → Add user** and create an account with email and password. Then, under **Authentication → Sign In / Providers**, turn off "Allow new users to sign up". The app treats every signed-in Supabase user as an admin.
+6. **Configure environment variables**
+   ```bash
+   cp .env.example .env.local
+   ```
+   Fill in the values from **Project Settings → API** and your Gemini key (see below).
+7. **Run the app**
+   ```bash
+   npm run dev
+   ```
+   Open http://localhost:5173. Use **Student RA** to sign in by name, or **Admin Access** with the user from step 5.
+
+### Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `VITE_SUPABASE_URL` | Yes | Supabase project URL, e.g. `https://your-project.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Yes | Supabase publishable (anon) key. Safe in the browser; access is controlled by RLS |
+| `VITE_GEMINI_API_KEY` | For timetable scan | Google Gemini API key. It is bundled into the browser build, so restrict it by HTTP referrer |
+
+### Scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the dev server with hot reload |
+| `npm run build` | Type-check and build for production into `dist/` |
+| `npm run preview` | Serve the production build locally |
+| `npm run lint` | Run ESLint |
+| `npm test` | Run the unit tests (Vitest) |
+
+## Known limitations
+
+- **Name-only RA login.** RAs sign in by typing their name, with no password. Anyone who knows an RA's name can act as them. Admin accounts use real Supabase Auth.
+- **Gemini key is exposed to the browser.** The timetable scan calls Gemini directly from the client, so the key ships in the JavaScript bundle. Planned fix: move the call into a Supabase Edge Function.
+- **Uploaded timetables are in a public bucket.** Anyone with a file's URL can view it. Planned fix: private bucket with signed URLs.
+- **Times are fixed to America/New_York.** Shift hours and the `.ics` export assume one timezone.
+- **Tests cover the core logic only.** Unit tests cover the scheduler and calendar export. There are no component or end-to-end tests yet.
+
+## Roadmap
+
+Planned work, including shift swaps, roster management and a pre-publish review step, is in [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## License
+
+[MIT](LICENSE) © 2026 Oluwaferanmi Odedairo
