@@ -11,6 +11,8 @@
 
 **Fair, availability-aware duty scheduling for Resident Assistant teams. RAs enter when they can work, and the admin generates and publishes a balanced semester roster in one click.**
 
+**[Live demo → ra-scheduler-feran.vercel.app](https://ra-scheduler-feran.vercel.app)** (the class-timetable scan is turned off in the demo)
+
 ## What it is
 
 University housing teams staff a duty rotation every night of the semester. Building that roster by hand in a spreadsheet is slow and it's hard to keep fair. RA Scheduler replaces the spreadsheet:
