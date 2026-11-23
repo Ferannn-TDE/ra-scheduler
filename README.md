@@ -20,11 +20,15 @@ University housing teams staff a duty rotation every night of the semester. Buil
 
 It is a mobile-friendly, installable web app built with React, TypeScript and Supabase.
 
+<!-- Screenshots: uncomment once the images in docs/screenshots/ exist (see docs/screenshots/README.md).
+
 ## Screenshots
 
 | Login | RA availability | Admin schedule |
 |---|---|---|
 | ![Login screen](docs/screenshots/login.png) | ![Weekly availability grid](docs/screenshots/availability.png) | ![Admin schedule with fairness chart](docs/screenshots/admin-schedule.png) |
+
+-->
 
 ## Features
 
