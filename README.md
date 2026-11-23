@@ -13,6 +13,21 @@
 
 **[Live demo → ra-scheduler-feran.vercel.app](https://ra-scheduler-feran.vercel.app)** (the class-timetable scan is turned off in the demo)
 
+### Try the demo
+
+The demo runs on a demo database filled with made-up RAs. Other visitors can change it, and it is reset from time to time.
+
+- **RA login:** on the **Student RA** tab, type a name from the seed data, such as `Ada Testcase`.
+- **Admin login:** on the **Admin Access** tab, email `DEMO_ADMIN_EMAIL`, password `DEMO_ADMIN_PASSWORD`.
+- **The class-timetable scan is turned off** in the demo (no Gemini key is configured).
+
+**30-second tour**
+
+1. Sign in as the admin and open **Admin Console**.
+2. Set the date range to start this month, then press **Generate Schedule**.
+3. Look at the fairness chart and stat cards, then find a Friday evening card with the **Understaffed** flag (the seed data has only one RA free on Fridays).
+4. Press **Publish Live**, sign out, sign in as `Ada Testcase`, open **View Final Schedule** and press **Add … shifts to Calendar** to download an `.ics` file.
+
 ## What it is
 
 University housing teams staff a duty rotation every night of the semester. Building that roster by hand in a spreadsheet is slow and it's hard to keep fair. RA Scheduler replaces the spreadsheet:
@@ -33,7 +48,7 @@ It is a mobile-friendly, installable web app built with React, TypeScript and Su
 ## Features
 
 - **Availability and shift preferences**: each RA sets a weekly template of shifts they *can* work, then marks the ones they'd *like* to work.
-- **Class-timetable scan with Gemini**: upload a screenshot of a class schedule. Google Gemini finds evening class conflicts and the availability grid updates automatically.
+- **Class-timetable scan with Gemini**: upload a screenshot of a class schedule. Google Gemini finds evening class conflicts and the availability grid updates automatically. Needs a Gemini API key, so it is turned off in the live demo.
 - **Fair scheduling with understaffed flags**: the generator balances total shifts per RA, honors preferences as a tie-breaker, and flags any shift it could not fully staff.
 - **Fairness chart**: a bar chart of shifts per RA against the team average, plus min / max / average stat cards.
 - **Publish / unpublish**: publishing replaces the live roster for the date range and records who published it. Any published range can be unpublished (deleted) from the history list.
@@ -53,7 +68,8 @@ The generator (`src/utils/scheduler.ts`) walks through every day in the selected
 | Backend | Supabase (Postgres, Row Level Security, Auth, Storage) |
 | AI | Google Gemini via `@google/genai` (timetable image analysis) |
 | Dates | date-fns |
-| Quality | ESLint, Vitest, GitHub Actions CI |
+| Hosting | Vercel (static build with SPA rewrites in `vercel.json`) |
+| Quality and automation | ESLint, Vitest, GitHub Actions (CI, plus a keep-alive ping for the demo database) |
 
 ## Project structure
 
@@ -73,12 +89,15 @@ The generator (`src/utils/scheduler.ts`) walks through every day in the selected
 │   ├── schema.sql           # Tables, RLS policies and storage bucket
 │   └── seed.sql             # Made-up demo RAs, availability and preferences
 ├── docs/                    # Roadmap and screenshots
-└── .github/workflows/ci.yml # Lint, test and build on every push and PR
+├── vercel.json              # Vercel build settings, SPA rewrites, PWA headers
+└── .github/workflows/
+    ├── ci.yml               # Lint, test and build on every push and PR
+    └── keepalive.yml        # Pings the demo database every 3 days so it doesn't pause
 ```
 
 ## Getting started
 
-**Prerequisites:** Node.js 20.19 or newer, a free [Supabase](https://supabase.com) project, and a [Gemini API key](https://aistudio.google.com/apikey) (only needed for the timetable scan).
+**Prerequisites:** Node.js 20.19 or newer and a free [Supabase](https://supabase.com) project. A [Gemini API key](https://aistudio.google.com/apikey) is optional and only needed for the timetable scan; everything else works without it.
 
 1. **Install dependencies**
    ```bash
@@ -92,7 +111,7 @@ The generator (`src/utils/scheduler.ts`) walks through every day in the selected
    ```bash
    cp .env.example .env.local
    ```
-   Fill in the values from **Project Settings → API** and your Gemini key (see below).
+   Fill in the values from **Project Settings → API**, and your Gemini key if you want the timetable scan (see below).
 7. **Run the app**
    ```bash
    npm run dev
@@ -117,7 +136,15 @@ Then follow steps 6–7 above. Sign in as the admin, open the scheduler and pres
 |---|---|---|
 | `VITE_SUPABASE_URL` | Yes | Supabase project URL, e.g. `https://your-project.supabase.co` |
 | `VITE_SUPABASE_ANON_KEY` | Yes | Supabase publishable (anon) key. Safe in the browser; access is controlled by RLS |
-| `VITE_GEMINI_API_KEY` | For timetable scan | Google Gemini API key. It is bundled into the browser build, so restrict it by HTTP referrer |
+| `VITE_GEMINI_API_KEY` | No | Google Gemini API key for the timetable scan. Without it, the scan shows an error and the rest of the app works. It is bundled into the browser build, so restrict it by HTTP referrer |
+
+### Deploying to Vercel
+
+1. Import the GitHub repo in Vercel. `vercel.json` already sets the Vite build, the `dist` output, a rewrite to `index.html` for client-side routes, and caching headers for the service worker and assets.
+2. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` under **Settings → Environment Variables** for Production and Preview. Add `VITE_GEMINI_API_KEY` only if you want the timetable scan.
+3. Deploy. Pushes to `main` deploy to production automatically.
+
+To keep a free Supabase project from pausing, add `SUPABASE_URL` and `SUPABASE_ANON_KEY` as GitHub repository secrets. The `keepalive.yml` workflow then makes one read-only request every 3 days.
 
 ### Scripts
 
@@ -132,14 +159,16 @@ Then follow steps 6–7 above. Sign in as the admin, open the scheduler and pres
 ## Known limitations
 
 - **Name-only RA login.** RAs sign in by typing their name, with no password. Anyone who knows an RA's name can act as them. Admin accounts use real Supabase Auth.
-- **Gemini key is exposed to the browser.** The timetable scan calls Gemini directly from the client, so the key ships in the JavaScript bundle. Planned fix: move the call into a Supabase Edge Function.
+- **Gemini key is exposed to the browser.** The timetable scan calls Gemini directly from the client, so the key ships in the JavaScript bundle. That's why the scan is turned off in the live demo. Planned fix: move the call into a Supabase Edge Function.
 - **Uploaded timetables are in a public bucket.** Anyone with a file's URL can view it. Planned fix: private bucket with signed URLs.
+- **Every signed-in Supabase user is an admin.** There are no roles, so keep public sign-ups turned off in Supabase Auth.
+- **Fixed date windows.** The admin scheduler opens on a hard-coded Jan 17 – May 17, 2026 range (it can be changed before generating). The RA roster shows from the start of the current month to six months ahead, so older schedules aren't visible.
 - **Times are fixed to Central time (America/Chicago).** Shift hours and the `.ics` export assume one timezone. Teams elsewhere need to change `CALENDAR_TIMEZONE` in `src/utils/ics.ts`.
 - **Tests cover the core logic only.** Unit tests cover the scheduler and calendar export. There are no component or end-to-end tests yet.
 
 ## Roadmap
 
-Planned work, including shift swaps, roster management and a pre-publish review step, is in [docs/ROADMAP.md](docs/ROADMAP.md).
+Planned work, including shift swaps, roster management, a pre-publish review step, browsing past schedules and moving the Gemini call server-side, is in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## License
 
