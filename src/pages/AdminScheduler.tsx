@@ -8,6 +8,15 @@ import ConfirmModal from "../components/ConfirmModal";
 import ShiftCard from "../components/ShiftCard";
 import FairnessChart from "../components/FairnessChart";
 import { useAlert } from "../hooks/useAlert";
+import type { PublishLog, RA, ScheduleRow } from "../types";
+
+// Default semester window shown when the page first loads.
+const DEFAULT_START_DATE = "2026-01-17";
+const DEFAULT_END_DATE = "2026-05-17";
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 function StatsModal({
   title,
@@ -71,15 +80,15 @@ function StatsModal({
 
 export default function AdminScheduler() {
   const navigate = useNavigate();
-  const [startDate, setStartDate] = useState("2026-01-17");
-  const [endDate, setEndDate] = useState("2026-05-17");
+  const [startDate, setStartDate] = useState(DEFAULT_START_DATE);
+  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
   const [schedule, setSchedule] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(false);
-  const [ras, setRas] = useState<any[]>([]);
-  const [publishLogs, setPublishLogs] = useState<any[]>([]);
+  const [ras, setRas] = useState<RA[]>([]);
+  const [publishLogs, setPublishLogs] = useState<PublishLog[]>([]);
   const [modalData, setModalData] = useState<{
     title: string;
-    list: any[];
+    list: { name: string; count: number }[];
   } | null>(null);
   const { alertState, triggerAlert, closeAlert } = useAlert();
 
@@ -103,6 +112,14 @@ export default function AdminScheduler() {
     document.title = "Admin Scheduler | RA Scheduler";
   }, []);
 
+  const fetchLogs = useCallback(async () => {
+    const { data } = await supabase
+      .from("publish_logs")
+      .select("*")
+      .order("published_at", { ascending: false });
+    if (data) setPublishLogs(data as PublishLog[]);
+  }, []);
+
   useEffect(() => {
     async function initAdmin() {
       // A. Fetch RAs
@@ -117,45 +134,40 @@ export default function AdminScheduler() {
       const { data: existingShifts } = await supabase
         .from("schedule")
         .select("*")
-        .gte("date", startDate) // "2026-01-17"
-        .lte("date", endDate); // "2026-05-17"
+        .gte("date", DEFAULT_START_DATE)
+        .lte("date", DEFAULT_END_DATE);
 
       if (existingShifts && existingShifts.length > 0) {
         // We need to group these raw DB rows into our 'Shift' object format
         // Raw: { date, shift_type, ra_id }
         // Target: { date, type, assignedRaIds: [] }
 
-        const groupedMap = existingShifts.reduce((acc: any, row: any) => {
-          const key = `${row.date}-${row.shift_type}`;
-          if (!acc[key]) {
-            acc[key] = {
-              date: row.date,
-              type: row.shift_type, // 'shift_type' from DB maps to 'type'
-              assignedRaIds: [],
-              isUnderstaffed: false,
-            };
-          }
-          acc[key].assignedRaIds.push(row.ra_id);
-          return acc;
-        }, {});
-
-        const hydratedSchedule = Object.values(groupedMap).sort(
-          (a: any, b: any) => a.date.localeCompare(b.date),
+        const groupedMap = (existingShifts as ScheduleRow[]).reduce(
+          (acc, row) => {
+            const key = `${row.date}-${row.shift_type}`;
+            if (!acc[key]) {
+              acc[key] = {
+                date: row.date,
+                type: row.shift_type, // 'shift_type' from DB maps to 'type'
+                assignedRaIds: [],
+                isUnderstaffed: false,
+              };
+            }
+            acc[key].assignedRaIds.push(row.ra_id);
+            return acc;
+          },
+          {} as Record<string, Shift>,
         );
 
-        setSchedule(hydratedSchedule as Shift[]);
+        const hydratedSchedule = Object.values(groupedMap).sort((a, b) =>
+          a.date.localeCompare(b.date),
+        );
+
+        setSchedule(hydratedSchedule);
       }
     }
     initAdmin();
-  }, []); // startDate/endDate intentionally excluded — initial fetch uses default window only
-
-  async function fetchLogs() {
-    const { data } = await supabase
-      .from("publish_logs")
-      .select("*")
-      .order("published_at", { ascending: false });
-    if (data) setPublishLogs(data);
-  }
+  }, [fetchLogs]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -197,15 +209,15 @@ export default function AdminScheduler() {
         `Created schedule with ${generated.length} shifts.`,
         "success",
       );
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      triggerAlert("Generation Failed", e.message, "error");
+      triggerAlert("Generation Failed", errorMessage(e), "error");
     } finally {
       setLoading(false);
     }
   }
 
-  function requestDelete(log: any) {
+  function requestDelete(log: PublishLog) {
     setConfirmState({
       isOpen: true,
       title: "Delete Log & Unpublish",
@@ -216,7 +228,7 @@ export default function AdminScheduler() {
     });
   }
 
-  async function executeDeleteLog(log: any) {
+  async function executeDeleteLog(log: PublishLog) {
     setLoading(true);
     try {
       const { error: schedError } = await supabase
@@ -241,10 +253,10 @@ export default function AdminScheduler() {
 
       setConfirmState((prev) => ({ ...prev, isOpen: false }));
       triggerAlert("Unpublished", "Schedule removed.", "success");
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
       setConfirmState((prev) => ({ ...prev, isOpen: false }));
-      triggerAlert("Error", error.message, "error");
+      triggerAlert("Error", errorMessage(error), "error");
     } finally {
       setLoading(false);
     }
@@ -305,10 +317,11 @@ export default function AdminScheduler() {
       await fetchLogs();
       setConfirmState((prev) => ({ ...prev, isOpen: false }));
       triggerAlert("Published!", "Live now.", "success");
-    } catch (error: any) {
+    } catch (error) {
       setConfirmState((prev) => ({ ...prev, isOpen: false }));
-      if (error.message.includes("Session expired")) navigate("/");
-      else triggerAlert("Failed", error.message, "error");
+      const message = errorMessage(error);
+      if (message.includes("Session expired")) navigate("/");
+      else triggerAlert("Failed", message, "error");
     } finally {
       setLoading(false);
     }

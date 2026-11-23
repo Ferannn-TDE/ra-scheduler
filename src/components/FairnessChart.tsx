@@ -104,7 +104,7 @@ export default function FairnessChart({ schedule, ras }: FairnessChartProps) {
                 border: "none",
                 boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
               }}
-              formatter={(value: any) => [`${value} shifts`, ""]}
+              formatter={(value) => [`${value} shifts`, ""]}
               // FIX 4: Tooltip now just reads the dataKey (uniqueName) directly
               labelFormatter={(label) => label}
             />

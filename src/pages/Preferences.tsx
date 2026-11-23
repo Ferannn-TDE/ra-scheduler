@@ -73,7 +73,7 @@ export default function Preferences() {
       }
     }
     loadData();
-  }, []);
+  }, [triggerAlert]);
 
   // --- LOGIC HELPERS ---
   const isAvailable = (day: number, shift: string) => {

@@ -5,6 +5,16 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // Keep the charting library out of the main bundle; only the admin page uses it.
+        manualChunks: {
+          recharts: ["recharts"],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

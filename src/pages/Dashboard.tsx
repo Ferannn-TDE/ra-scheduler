@@ -68,7 +68,7 @@ export default function Dashboard() {
                 {name}
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                {isAdmin ? "Administrator" : "Resident Advisor"}
+                {isAdmin ? "Administrator" : "Resident Assistant"}
               </p>
             </div>
           </div>

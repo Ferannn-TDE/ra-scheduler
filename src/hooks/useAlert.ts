@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 type AlertType = "success" | "error" | "info";
 
@@ -17,17 +17,17 @@ export function useAlert() {
     type: "info",
   });
 
-  const triggerAlert = (
-    title: string,
-    message: string,
-    type: AlertType = "info",
-  ) => {
-    setAlertState({ isOpen: true, title, message, type });
-  };
+  // Stable identities so callers can list these in effect dependencies.
+  const triggerAlert = useCallback(
+    (title: string, message: string, type: AlertType = "info") => {
+      setAlertState({ isOpen: true, title, message, type });
+    },
+    [],
+  );
 
-  const closeAlert = () => {
+  const closeAlert = useCallback(() => {
     setAlertState((prev) => ({ ...prev, isOpen: false }));
-  };
+  }, []);
 
   return { alertState, triggerAlert, closeAlert };
 }

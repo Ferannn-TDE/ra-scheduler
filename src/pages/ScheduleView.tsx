@@ -17,6 +17,7 @@ interface ConsolidatedShift {
   date: string;
   type: "morning" | "evening";
   assignedRaIds: string[];
+  isUnderstaffed: boolean;
 }
 
 // Extracted to module level so React doesn't recreate it on every render

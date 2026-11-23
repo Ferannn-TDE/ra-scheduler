@@ -1,8 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
+import type { ScheduleConflict } from "../types";
+
+// Stable model first, older stable model as a fallback.
+const MODELS = ["gemini-3.5-flash", "gemini-2.5-flash"];
 
 export async function parseScheduleImage(
   file: File,
-): Promise<{ day: number; shift: "morning" | "evening" }[]> {
+): Promise<ScheduleConflict[]> {
   const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
   if (!API_KEY) {
@@ -49,16 +53,9 @@ export async function parseScheduleImage(
       Return ONLY valid JSON. No markdown.
     `;
 
-    // 2. Model Strategy: Try your requested model first, then fall back to stable ones
-    const modelsToTry = [
-      "gemini-3-flash-preview", // Your requested model
-      "gemini-2.0-flash-exp", // Current experimental preview
-      "gemini-1.5-flash-001", // Stable fallback
-    ];
+    let lastError: unknown;
 
-    let lastError;
-
-    for (const modelName of modelsToTry) {
+    for (const modelName of MODELS) {
       try {
         console.log(`Scanning with ${modelName}...`);
 
@@ -78,18 +75,27 @@ export async function parseScheduleImage(
         if (!text) throw new Error("No text returned");
 
         const cleanJson = text.replace(/```json|```/g, "").trim();
-        const parsedResult = JSON.parse(cleanJson);
+        const parsedResult: unknown = JSON.parse(cleanJson);
 
         // --- CHECK FOR VALIDATION ERROR ---
-        if (parsedResult.error === "missing_time_column") {
+        if (
+          typeof parsedResult === "object" &&
+          parsedResult !== null &&
+          "error" in parsedResult &&
+          parsedResult.error === "missing_time_column"
+        ) {
           throw new Error("MISSING_TIME_COLUMN");
         }
 
+        if (!Array.isArray(parsedResult)) {
+          throw new Error("Unexpected response shape");
+        }
+
         console.log(`SUCCESS! Scanned using ${modelName}`);
-        return parsedResult;
-      } catch (error: any) {
+        return parsedResult.filter(isScheduleConflict);
+      } catch (error) {
         // If validation failed (Time column missing), STOP immediately.
-        if (error.message === "MISSING_TIME_COLUMN") {
+        if (isMissingTimeColumn(error)) {
           throw error;
         }
         console.warn(`Failed with ${modelName}. Trying next...`);
@@ -98,13 +104,28 @@ export async function parseScheduleImage(
     }
 
     throw lastError || new Error("All models failed.");
-  } catch (error: any) {
-    if (error.message === "MISSING_TIME_COLUMN") {
+  } catch (error) {
+    if (isMissingTimeColumn(error)) {
       throw error;
     }
     console.error("FULL ERROR DETAILS:", error);
     throw error;
   }
+}
+
+function isMissingTimeColumn(error: unknown): boolean {
+  return error instanceof Error && error.message === "MISSING_TIME_COLUMN";
+}
+
+function isScheduleConflict(value: unknown): value is ScheduleConflict {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.day === "number" &&
+    v.day >= 0 &&
+    v.day <= 6 &&
+    (v.shift === "morning" || v.shift === "evening")
+  );
 }
 
 function fileToBase64(file: File): Promise<string> {

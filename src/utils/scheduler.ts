@@ -1,5 +1,6 @@
 import { addDays, format, differenceInDays } from "date-fns";
 import { isMorningShiftDay } from "../constants/schedule";
+import type { AvailabilityRow, PreferenceRow, RA } from "../types";
 
 export interface Shift {
   date: string;
@@ -23,9 +24,9 @@ function getRequiredStaff(dayOfWeek: number, type: "morning" | "evening") {
 export function generateSemesterSchedule(
   startDate: Date,
   endDate: Date,
-  allRas: any[],
-  templateAvailability: any[], // { ra_id, day_of_week, shift_type }
-  templatePreferences: any[], // { ra_id, day_of_week, shift_type }
+  allRas: Pick<RA, "id">[],
+  templateAvailability: Pick<AvailabilityRow, "ra_id" | "day_of_week" | "shift_type">[],
+  templatePreferences: Pick<PreferenceRow, "ra_id" | "day_of_week" | "shift_type">[],
 ): Shift[] {
   const schedule: Shift[] = [];
 

@@ -5,6 +5,7 @@ import { parseScheduleImage } from "../utils/ocr";
 import CustomAlert from "../components/CustomAlert";
 import { useAlert } from "../hooks/useAlert";
 import { DAYS_OF_WEEK, isMorningShiftDay } from "../constants/schedule";
+import type { ScheduleConflict } from "../types";
 
 export default function InputAvailability() {
   const navigate = useNavigate();
@@ -91,7 +92,7 @@ export default function InputAvailability() {
       // 2. Subtract the conflicts found by AI
       const finalAvailability = fullValidWeek.filter((validSlot) => {
         const isBusy = busyConflicts.some(
-          (busy: any) =>
+          (busy: ScheduleConflict) =>
             busy.day === validSlot.day && busy.shift === validSlot.shift,
         );
         return !isBusy;
@@ -103,7 +104,7 @@ export default function InputAvailability() {
       // 4. Feedback Message (REPLACED ALERTS)
       if (busyConflicts.length > 0) {
         const conflictNames = busyConflicts
-          .map((c: any) => `${DAYS_OF_WEEK[c.day]} ${c.shift}`)
+          .map((c: ScheduleConflict) => `${DAYS_OF_WEEK[c.day]} ${c.shift}`)
           .join(", ");
 
         triggerAlert(
@@ -118,10 +119,10 @@ export default function InputAvailability() {
           "success",
         );
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
 
-      if (error.message === "MISSING_TIME_COLUMN") {
+      if (error instanceof Error && error.message === "MISSING_TIME_COLUMN") {
         triggerAlert(
           "Scan Failed: Missing Time Column",
           "We could not see the time labels (9am, 5pm, etc.) on the left side of your screenshot.\n\nPlease take a wider screenshot that clearly shows the times on the left.",
