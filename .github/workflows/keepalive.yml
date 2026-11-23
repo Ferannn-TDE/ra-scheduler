@@ -1,0 +1,35 @@
+name: Keep demo database awake
+
+# Free Supabase projects pause after about a week without activity.
+# This makes one read-only request every 3 days so the live demo stays up.
+
+on:
+  schedule:
+    - cron: "17 14 */3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query the ras table
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "SUPABASE_URL and SUPABASE_ANON_KEY secrets must be set." >&2
+            exit 1
+          fi
+          status=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/ras?select=id&limit=1")
+          echo "Supabase responded with HTTP $status"
+          if [ "$status" != "200" ]; then
+            exit 1
+          fi
