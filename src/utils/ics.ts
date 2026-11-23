@@ -1,4 +1,4 @@
-import { format, parseISO, addHours } from "date-fns";
+import { format, parseISO, setHours } from "date-fns";
 
 // We define the interface here to ensure we know what to expect
 interface IcsShift {
@@ -6,7 +6,8 @@ interface IcsShift {
   type: string; // Ensure this matches the property passed from ScheduleView
 }
 
-export function downloadCalendarFile(shifts: IcsShift[]) {
+/** Build the text of an .ics calendar containing one event per shift. */
+export function buildIcsContent(shifts: IcsShift[]): string {
   // 1. ICS Header
   let icsContent = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -28,8 +29,8 @@ X-WR-TIMEZONE:America/New_York
     const startHour = shift.type === "morning" ? 10 : 17;
     const endHour = shift.type === "morning" ? 17 : 23;
 
-    const startStr = format(addHours(date, startHour), "yyyyMMdd'T'HHmmss");
-    const endStr = format(addHours(date, endHour), "yyyyMMdd'T'HHmmss");
+    const startStr = format(setHours(date, startHour), "yyyyMMdd'T'HHmmss");
+    const endStr = format(setHours(date, endHour), "yyyyMMdd'T'HHmmss");
 
     icsContent += `BEGIN:VEVENT
 SUMMARY:RA Duty (${shiftLabel})
@@ -44,7 +45,13 @@ END:VEVENT
   // 3. Footer
   icsContent += "END:VCALENDAR";
 
-  // 4. Trigger Download
+  return icsContent;
+}
+
+export function downloadCalendarFile(shifts: IcsShift[]) {
+  const icsContent = buildIcsContent(shifts);
+
+  // Trigger Download
   const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement("a");
