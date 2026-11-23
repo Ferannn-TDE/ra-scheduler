@@ -69,7 +69,9 @@ The generator (`src/utils/scheduler.ts`) walks through every day in the selected
 │   ├── utils/               # scheduler, .ics export, Gemini scan, Supabase client (+ tests)
 │   ├── App.tsx              # Routes (lazy-loaded)
 │   └── main.tsx             # Entry point
-├── supabase/schema.sql      # Tables, RLS policies and storage bucket
+├── supabase/
+│   ├── schema.sql           # Tables, RLS policies and storage bucket
+│   └── seed.sql             # Made-up demo RAs, availability and preferences
 ├── docs/                    # Roadmap and screenshots
 └── .github/workflows/ci.yml # Lint, test and build on every push and PR
 ```
@@ -96,6 +98,18 @@ The generator (`src/utils/scheduler.ts`) walks through every day in the selected
    npm run dev
    ```
    Open http://localhost:5173. Use **Student RA** to sign in by name, or **Admin Access** with the user from step 5.
+
+### Demo setup
+
+To try the app with sample data instead of a real team, use a fresh Supabase project:
+
+1. **Create a new Supabase project.**
+2. **Run [`supabase/schema.sql`](supabase/schema.sql)** in the SQL Editor.
+3. **Run [`supabase/seed.sql`](supabase/seed.sql)** in the SQL Editor. It adds 8 made-up RAs (Ada Testcase, Ben Placeholder, ...) with a mix of availability and preferences. Nothing is published yet.
+4. **Check the storage bucket.** Make sure a public bucket named `schedule` exists (schema.sql creates it).
+5. **Create an admin user** under **Authentication → Users → Add user**.
+
+Then follow steps 6–7 above. Sign in as the admin, open the scheduler and press **Generate Schedule**. Friday evenings are deliberately short-staffed in the seed data, so you'll see the understaffed flag. To see the RA side, sign in on the **Student RA** tab with a seeded name such as `Hana Demo`.
 
 ### Environment variables
 
