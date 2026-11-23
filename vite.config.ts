@@ -20,7 +20,12 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png", "masked-icon.svg"],
+      includeAssets: [
+        "favicon.ico",
+        "favicon.svg",
+        "apple-touch-icon.png",
+        "masked-icon.svg",
+      ],
       manifest: {
         name: "Semester Scheduler",
         short_name: "Scheduler",
