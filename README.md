@@ -116,7 +116,7 @@ The generator (`src/utils/scheduler.ts`) walks through every day in the selected
 - **Name-only RA login.** RAs sign in by typing their name, with no password. Anyone who knows an RA's name can act as them. Admin accounts use real Supabase Auth.
 - **Gemini key is exposed to the browser.** The timetable scan calls Gemini directly from the client, so the key ships in the JavaScript bundle. Planned fix: move the call into a Supabase Edge Function.
 - **Uploaded timetables are in a public bucket.** Anyone with a file's URL can view it. Planned fix: private bucket with signed URLs.
-- **Times are fixed to America/New_York.** Shift hours and the `.ics` export assume one timezone.
+- **Times are fixed to Central time (America/Chicago).** Shift hours and the `.ics` export assume one timezone. Teams elsewhere need to change `CALENDAR_TIMEZONE` in `src/utils/ics.ts`.
 - **Tests cover the core logic only.** Unit tests cover the scheduler and calendar export. There are no component or end-to-end tests yet.
 
 ## Roadmap

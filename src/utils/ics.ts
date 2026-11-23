@@ -1,5 +1,8 @@
 import { format, parseISO, setHours } from "date-fns";
 
+// Shift times are wall-clock times in the housing team's local timezone.
+export const CALENDAR_TIMEZONE = "America/Chicago";
+
 // We define the interface here to ensure we know what to expect
 interface IcsShift {
   date: string;
@@ -14,7 +17,7 @@ VERSION:2.0
 PRODID:-//RAScheduler//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
-X-WR-TIMEZONE:America/New_York
+X-WR-TIMEZONE:${CALENDAR_TIMEZONE}
 `;
 
   // 2. Loop through shifts
@@ -34,8 +37,8 @@ X-WR-TIMEZONE:America/New_York
 
     icsContent += `BEGIN:VEVENT
 SUMMARY:RA Duty (${shiftLabel})
-DTSTART;TZID=America/New_York:${startStr}
-DTEND;TZID=America/New_York:${endStr}
+DTSTART;TZID=${CALENDAR_TIMEZONE}:${startStr}
+DTEND;TZID=${CALENDAR_TIMEZONE}:${endStr}
 DESCRIPTION:Residence Hall Duty Shift
 STATUS:CONFIRMED
 END:VEVENT
